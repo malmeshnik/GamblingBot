@@ -1,0 +1,100 @@
+from django.db import models
+from django.utils import timezone
+
+
+class User(models.Model):
+    telegram_id = models.BigIntegerField(
+        unique=True, null=False, blank=False, verbose_name="Телеграм ID"
+    )
+    username = models.CharField(
+        null=True, blank=True, max_length=100, verbose_name="Юзернейм"
+    )
+    first_name = models.CharField(
+        null=True, blank=True, max_length=100, verbose_name="Ім'я"
+    )
+    last_name = models.CharField(
+        null=True, blank=True, max_length=100, verbose_name="Фамілія"
+    )
+    bloger = models.ForeignKey(
+        "Bloger", related_name="users", null=True, blank=True,
+        on_delete=models.SET_NULL, verbose_name="Блогер який запросив"
+    )
+
+    joined_at = models.DateTimeField(verbose_name='Додався в', auto_now_add=True)
+
+
+    class Meta:
+        verbose_name = 'Користувач'
+        verbose_name_plural = 'Користувачі'
+
+
+class Message(models.Model):
+    text = models.TextField(max_length=1024, verbose_name="Текст повідомлення")
+    media = models.FileField(upload_to='media/', verbose_name="Медіафайл", null=True, blank=True)
+    button_text = models.CharField(max_length=32, verbose_name="Текст кнопки")
+
+    class Meta:
+        verbose_name = "Повідомлення"
+        verbose_name_plural = "Повідомлення"
+
+
+class Bloger(models.Model):
+    name = models.CharField(max_length=255, verbose_name="Ім'я блогера")
+    ref_link_to_site = models.URLField(verbose_name="Реферальне посилання на сайт")
+    invited_people = models.IntegerField(default=0, verbose_name="Запрошено людей")
+    ref_link_to_bot = models.URLField(
+        null=True, blank=True, verbose_name="Реферальне посилання на бот"
+    )
+
+    class Meta:
+        verbose_name = "Блогер"
+        verbose_name_plural = "Блогери"
+
+    def __str__(self):
+        return f"{self.name}"
+
+
+class ScheduledMessage(models.Model):
+    text = models.TextField(verbose_name="Текст повідомлення")
+    button_text = models.CharField(max_length=100, verbose_name="Текст кнопки")
+
+    media = models.FileField(
+        upload_to="scheduled_media/", blank=True, null=True, verbose_name="Медіа файл"
+    )
+
+    send_at = models.DateTimeField(verbose_name="Час відправки", default=timezone.now)
+
+    sent = models.BooleanField(default=False, verbose_name="Відправлено")
+
+    class Meta:
+        verbose_name = "Заплановане повідомлення"
+        verbose_name_plural = "Заплановані повідомлення"
+
+    def __str__(self):
+        return f"{self.text[:30]}... scheduled for {self.send_at}"
+
+class Campain(models.Model):
+    text = models.TextField(verbose_name="Текст повідомлення")
+    button_text = models.CharField(max_length=100, verbose_name="Текст кнопки")
+
+    media = models.FileField(
+        upload_to="scheduled_media/", blank=True, null=True, verbose_name="Медіа файл"
+    )
+    delay_minutes = models.PositiveIntegerField(verbose_name='Затримка у хвилинах', default=0)
+
+    class Meta:
+        verbose_name = "Повідомлення після старту"
+        verbose_name_plural = "Повідомлення після старту"
+
+class MessageAfterStart(models.Model):
+    text = models.TextField(verbose_name="Текст повідомлення")
+    button_text = models.CharField(max_length=100, verbose_name="Текст кнопки")
+    user = models.ForeignKey('User', on_delete=models.CASCADE)
+
+    media = models.FileField(
+        upload_to="scheduled_media/", blank=True, null=True, verbose_name="Медіа файл"
+    )
+
+    send_at = models.DateTimeField(verbose_name="Час відправки", default=timezone.now)
+
+    sent = models.BooleanField(default=False, verbose_name="Відправлено")
