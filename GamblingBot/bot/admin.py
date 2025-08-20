@@ -16,8 +16,8 @@ class UserAdmin(admin.ModelAdmin):
 class MessageAdmin(admin.ModelAdmin):
     list_display = ['text', 'button_text']
 
-    def has_add_permission(self, request):
-        return False
+    # def has_add_permission(self, request):
+    #     return False
     
 @admin.register(Bloger)
 class BlogerAdmin(admin.ModelAdmin):
