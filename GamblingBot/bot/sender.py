@@ -100,6 +100,7 @@ async def send_scheduled_messages():
     users = await sync_to_async(list)(User.objects.all())
 
     for msg in messages:
+        msg.sent = True
         media_file = FSInputFile(msg.media.path) if msg.media else None
         mime, _ = mimetypes.guess_type(msg.media.path) if msg.media else (None, None)
 
@@ -117,6 +118,5 @@ async def send_scheduled_messages():
             await asyncio.gather(*chunk, return_exceptions=True)
             await asyncio.sleep(1)
 
-        msg.sent = True
         await sync_to_async(msg.save)()
         logger.info(f"📨 Заплановане повідомлення {msg.id} розіслано всім користувачам")
