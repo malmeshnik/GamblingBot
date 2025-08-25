@@ -21,7 +21,7 @@ class Command(BaseCommand):
         async def main():
             await bot.delete_webhook()
             
-            scheduler.add_job(send_scheduled_messages, 'interval', minutes=1, max_instances=1)
+            scheduler.add_job(send_scheduled_messages, 'interval', minutes=1, max_instances=1, coalesce=True)
             scheduler.add_job(send_messages_after_start, 'interval', minutes=1)
             scheduler.start()
 
