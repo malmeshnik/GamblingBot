@@ -110,9 +110,19 @@ async def send_scheduled_messages():
             if not bloger:
                 continue
 
+            button_link = bloger.ref_link_to_site
+            
+            if msg.button_link:
+                button_link = msg.button_link
 
-            keyboard = get_keyboard(msg.button_text, bloger.ref_link_to_site)
-            tasks.append(send_message_safe(user, msg.text, keyboard, media_file, mime))
+            keyboard = get_keyboard(msg.button_text, button_link)
+
+            message_text = msg.text
+            
+            if '{name}' in msg.text:
+                message_text = msg.text.format(name=user.first_name)
+                
+            tasks.append(send_message_safe(user, message_text, keyboard, media_file, mime))
 
         for chunk in [tasks[i : i + 25] for i in range(0, len(tasks), 25)]:
             await asyncio.gather(*chunk, return_exceptions=True)

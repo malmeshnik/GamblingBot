@@ -1,5 +1,6 @@
 from django.db import models
 from django.utils import timezone
+from django.utils.html import escape
 
 
 class User(models.Model):
@@ -16,21 +17,26 @@ class User(models.Model):
         null=True, blank=True, max_length=100, verbose_name="Фамілія"
     )
     bloger = models.ForeignKey(
-        "Bloger", related_name="users", null=True, blank=True,
-        on_delete=models.SET_NULL, verbose_name="Блогер який запросив"
+        "Bloger",
+        related_name="users",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        verbose_name="Блогер який запросив",
     )
 
-    joined_at = models.DateTimeField(verbose_name='Додався в', auto_now_add=True)
-
+    joined_at = models.DateTimeField(verbose_name="Додався в", auto_now_add=True)
 
     class Meta:
-        verbose_name = 'Користувач'
-        verbose_name_plural = 'Користувачі'
+        verbose_name = "Користувач"
+        verbose_name_plural = "Користувачі"
 
 
 class Message(models.Model):
     text = models.TextField(max_length=1024, verbose_name="Текст повідомлення")
-    media = models.FileField(upload_to='media/', verbose_name="Медіафайл", null=True, blank=True)
+    media = models.FileField(
+        upload_to="media/", verbose_name="Медіафайл", null=True, blank=True
+    )
     button_text = models.CharField(max_length=32, verbose_name="Текст кнопки")
 
     class Meta:
@@ -55,8 +61,21 @@ class Bloger(models.Model):
 
 
 class ScheduledMessage(models.Model):
-    text = models.TextField(verbose_name="Текст повідомлення")
+    text = models.TextField(
+        verbose_name="Текст повідомлення",
+        help_text=escape(
+            "Для того щоб у розсилці вказати ім'я користувача, використайте {name} у потрібному місці. "
+            "Також підтримується HTML форматування тексту. "
+            "Наприклад: <b>Тут буде жирний текст</b>"
+        )
+    )
     button_text = models.CharField(max_length=100, verbose_name="Текст кнопки")
+    button_link = models.URLField(
+        blank=True,
+        null=True,
+        verbose_name="Посилання кнопки",
+        help_text="Якщо не вказати посилання, буде використанно реферальне посилання на сайт блогера, який  привів",
+    )
 
     media = models.FileField(
         upload_to="scheduled_media/", blank=True, null=True, verbose_name="Медіа файл"
@@ -73,6 +92,7 @@ class ScheduledMessage(models.Model):
     def __str__(self):
         return f"{self.text[:30]}... scheduled for {self.send_at}"
 
+
 class Campain(models.Model):
     text = models.TextField(verbose_name="Текст повідомлення")
     button_text = models.CharField(max_length=100, verbose_name="Текст кнопки")
@@ -80,16 +100,19 @@ class Campain(models.Model):
     media = models.FileField(
         upload_to="scheduled_media/", blank=True, null=True, verbose_name="Медіа файл"
     )
-    delay_minutes = models.PositiveIntegerField(verbose_name='Затримка у хвилинах', default=0)
+    delay_minutes = models.PositiveIntegerField(
+        verbose_name="Затримка у хвилинах", default=0
+    )
 
     class Meta:
         verbose_name = "Повідомлення після старту"
         verbose_name_plural = "Повідомлення після старту"
 
+
 class MessageAfterStart(models.Model):
     text = models.TextField(verbose_name="Текст повідомлення")
     button_text = models.CharField(max_length=100, verbose_name="Текст кнопки")
-    user = models.ForeignKey('User', on_delete=models.CASCADE)
+    user = models.ForeignKey("User", on_delete=models.CASCADE)
 
     media = models.FileField(
         upload_to="scheduled_media/", blank=True, null=True, verbose_name="Медіа файл"
