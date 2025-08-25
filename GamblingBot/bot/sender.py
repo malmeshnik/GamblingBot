@@ -1,4 +1,3 @@
-# bot/senders.py
 import asyncio
 import mimetypes
 import logging
@@ -11,7 +10,6 @@ from aiogram.exceptions import (
     TelegramRetryAfter,
 )
 from django.utils import timezone
-
 from .models import User, ScheduledMessage, MessageAfterStart
 from .bot_instance import bot
 
@@ -29,29 +27,27 @@ async def send_message_safe(user, msg_text, keyboard=None, media_file=None, mime
         if media_file:
             if mime and "image" in mime:
                 await bot.send_photo(
-                    chat_id=user.telegram_id,
-                    photo=media_file,
+                    user.telegram_id,
+                    media_file,
                     caption=msg_text,
                     reply_markup=keyboard,
                 )
             elif mime and "video" in mime:
                 await bot.send_video(
-                    chat_id=user.telegram_id,
-                    video=media_file,
+                    user.telegram_id,
+                    media_file,
                     caption=msg_text,
                     reply_markup=keyboard,
                 )
             else:
                 await bot.send_document(
-                    chat_id=user.telegram_id,
-                    document=media_file,
+                    user.telegram_id,
+                    media_file,
                     caption=msg_text,
                     reply_markup=keyboard,
                 )
         else:
-            await bot.send_message(
-                chat_id=user.telegram_id, text=msg_text, reply_markup=keyboard
-            )
+            await bot.send_message(user.telegram_id, msg_text, reply_markup=keyboard)
 
         logger.info(f"✅ Повідомлення надіслано користувачу {user.telegram_id}")
         return True
@@ -80,24 +76,27 @@ async def send_messages_after_start():
         media_file = FSInputFile(msg.media.path) if msg.media else None
         mime, _ = mimetypes.guess_type(msg.media.path) if msg.media else (None, None)
 
-        tasks = []
         user = await sync_to_async(lambda: msg.user)()
         bloger = await sync_to_async(lambda: user.bloger)()
         if not bloger:
             continue
 
-
         keyboard = get_keyboard(msg.button_text, bloger.ref_link_to_site)
         await send_message_safe(user, msg.text, keyboard, media_file, mime)
 
         await sync_to_async(msg.delete)()
-        logger.info(f"📨 Заплановане повідомлення {msg.id} розіслано всім користувачам")
+        logger.info(
+            f"📨 Заплановане повідомлення {msg.id} розіслано користувачу {user.telegram_id}"
+        )
+
 
 async def send_scheduled_messages():
     messages = await sync_to_async(list)(
         ScheduledMessage.objects.filter(send_at__lte=timezone.now(), sent=False)
     )
-    users = await sync_to_async(list)(User.objects.all())
+    users = await sync_to_async(
+        lambda: list(User.objects.select_related("bloger").all())
+    )()
 
     for msg in messages:
         msg.sent = True
@@ -105,25 +104,28 @@ async def send_scheduled_messages():
         mime, _ = mimetypes.guess_type(msg.media.path) if msg.media else (None, None)
 
         tasks = []
-        for user in users:
-            bloger = await sync_to_async(lambda: user.bloger)()
+        semaphore = asyncio.Semaphore(10)  # максимум 10 одночасних відправлень
+
+        async def send_with_limit(user):
+            bloger = user.bloger
             if not bloger:
-                continue
+                return
 
-            button_link = bloger.ref_link_to_site
-            
-            if msg.button_link:
-                button_link = msg.button_link
-
+            button_link = msg.button_link or bloger.ref_link_to_site
             keyboard = get_keyboard(msg.button_text, button_link)
+            message_text = (
+                msg.text.format(name=user.first_name)
+                if "{name}" in msg.text
+                else msg.text
+            )
 
-            message_text = msg.text
-            
-            if '{name}' in msg.text:
-                message_text = msg.text.format(name=user.first_name)
-                
-            tasks.append(send_message_safe(user, message_text, keyboard, media_file, mime))
+            async with semaphore:
+                await send_message_safe(user, message_text, keyboard, media_file, mime)
 
+        for user in users:
+            tasks.append(send_with_limit(user))
+
+        # Виконуємо у чанках по 25
         for chunk in [tasks[i : i + 25] for i in range(0, len(tasks), 25)]:
             await asyncio.gather(*chunk, return_exceptions=True)
             await asyncio.sleep(1)
