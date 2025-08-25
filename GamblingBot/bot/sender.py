@@ -122,6 +122,7 @@ async def send_scheduled_messages():
 
     for msg in messages:
         msg.sent = True
+        await sync_to_async(msg.save)()
         media_file = FSInputFile(msg.media.path) if msg.media else None
         mime, _ = mimetypes.guess_type(msg.media.path) if msg.media else (None, None)
 
