@@ -54,8 +54,8 @@ async def send_message_safe(user, msg_text, keyboard=None, media_file=None, mime
 
     except TelegramForbiddenError:
         logger.warning(f"🚫 Користувач {user.telegram_id} заблокував бота")
-    except TelegramBadRequest:
-        logger.warning(f"⚠️ Невірний telegram_id: {user.telegram_id}")
+    except TelegramBadRequest as e:
+        logger.warning(f"⚠️ Невірний telegram_id: {user.telegram_id} Помилка: {e}")
     except TelegramRetryAfter as e:
         logger.warning(
             f"⏳ Flood control для {user.telegram_id}, чекаємо {e.retry_after} сек..."
