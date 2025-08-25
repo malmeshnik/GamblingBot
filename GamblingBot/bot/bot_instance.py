@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.jobstores.redis import RedisJobStore
 from aiogram import Bot, Dispatcher
+from aiogram.client.default import DefaultBotProperties
 from aiogram.fsm.storage.redis import RedisStorage, DefaultKeyBuilder
 
 load_dotenv()
@@ -19,5 +20,5 @@ scheduler = AsyncIOScheduler(
 
 storage = RedisStorage.from_url(redis_dsn, key_builder=DefaultKeyBuilder(with_bot_id=True))
 
-bot = Bot(BOT_TOKEN)
+bot = Bot(BOT_TOKEN, default=DefaultBotProperties(parse_mode='HTML'))
 dp = Dispatcher(storage=storage)
