@@ -133,5 +133,4 @@ async def send_scheduled_messages():
             await asyncio.gather(*chunk, return_exceptions=True)
             await asyncio.sleep(1)  # пауза між чанками
 
-        await sync_to_async(msg.save)()
         logger.info(f"📨 Заплановане повідомлення {msg.id} розіслано всім користувачам")
