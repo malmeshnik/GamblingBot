@@ -27,27 +27,27 @@ async def send_message_safe(user, msg_text, keyboard=None, media_file=None, mime
         if media_file:
             if mime and "image" in mime:
                 await bot.send_photo(
-                    user.telegram_id,
+                    int(user.telegram_id),
                     media_file,
                     caption=msg_text,
                     reply_markup=keyboard,
                 )
             elif mime and "video" in mime:
                 await bot.send_video(
-                    user.telegram_id,
+                    int(user.telegram_id),
                     media_file,
                     caption=msg_text,
                     reply_markup=keyboard,
                 )
             else:
                 await bot.send_document(
-                    user.telegram_id,
+                    int(user.telegram_id),
                     media_file,
                     caption=msg_text,
                     reply_markup=keyboard,
                 )
         else:
-            await bot.send_message(user.telegram_id, msg_text, reply_markup=keyboard)
+            await bot.send_message(int(user.telegram_id), msg_text, reply_markup=keyboard)
 
         logger.info(f"✅ Повідомлення надіслано користувачу {user.telegram_id}")
         return True
