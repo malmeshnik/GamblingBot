@@ -2,14 +2,18 @@ import logging
 import mimetypes
 from asgiref.sync import sync_to_async
 
+from aiogram import Bot
 from aiogram.types import Message, FSInputFile
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from .models import Bloger, Message as DBMessage
 
+def get_first_message(bloger):
+    return DBMessage.objects.filter(bot=bloger.bot).first()
+
 async def send_message(message: Message, bloger: Bloger):
     try:
-        msg = await sync_to_async(DBMessage.objects.first)()
+        msg = await sync_to_async(get_first_message)(bloger)
         keyboard = await get_keyboard(msg.button_text, bloger.ref_link_to_site)
 
         if msg.media:
@@ -50,3 +54,11 @@ async def get_keyboard(text: str, link: str):
 
     return kb.as_markup()
     
+async def check_bot(token: str):
+    try:
+        async with Bot(token) as bot:
+            bot_info = await bot.get_me()
+    except Exception as e:
+        return e
+    
+    return bot_info

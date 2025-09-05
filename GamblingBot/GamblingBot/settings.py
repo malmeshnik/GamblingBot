@@ -27,7 +27,7 @@ DEBUG = True
 
 ALLOWED_HOSTS = ['*']
 
-CSRF_TRUSTED_ORIGINS = ['https://783c9e303edf.ngrok-free.app']
+CSRF_TRUSTED_ORIGINS = ['https://dabfdab624a2.ngrok-free.app']
 
 
 # Application definition
@@ -57,7 +57,7 @@ ROOT_URLCONF = 'GamblingBot.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR / "bot/templates"],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [

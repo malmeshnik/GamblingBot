@@ -1,0 +1,88 @@
+<div id="custom-sidebar" class="module">
+  <div class="sidebar-header">
+    <button id="add-bot-btn">
+      <a href="/admin/bot/bot/add">+ Додати бота</a>
+    </button>
+  </div>
+    <ul class="app-list">
+    {% for app in app_list %}
+        <li class="app-{{ app.app_label }}">
+            <table>
+              <caption class="toggle-btn">
+                <a href="/admin/bot/bot/{{ app.bot_id }}/change/"><b class = "app_name">{{ app.name }}</b></a>
+              </caption>
+                <tbody class="model-list">
+                {% for model in app.models %}
+                <tr class="model-{{ model.name|lower }}">
+                    <td>
+                        <a href="{{ model.admin_url }}"
+                           class="{% if model.name == cl.opts.verbose_name %}selected{% endif %}">
+                           <b>{{ model.name }}</b>
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </li>
+        <br>
+    {% endfor %}
+    </ul>
+</div>
+
+<style>
+#custom-sidebar ul,
+#custom-sidebar li {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+#custom-sidebar table {
+  width: 100%;
+}
+
+.app_name {
+  color: #fff;
+}
+
+#add-bot-btn {
+    display: block;       
+    width: 100%;           
+    padding: 6px 10px;    
+    background-color: #5e7ce0; 
+    color: #fff;
+    font-size: 13px;
+    font-weight: 500;
+    text-align: center;
+    text-decoration: none;
+    white-space: nowrap;
+    cursor: pointer;
+    border: 1px solid #3f51b5;
+    border-radius: 3px;
+    box-sizing: border-box; /* щоб padding не виходив за ширину */
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    // Toggle моделей під ботом
+    document.querySelectorAll('.toggle-btn').forEach(btn => {
+        const table = btn.closest('table');
+        const tbody = table.querySelector('.model-list');
+        const botId = table.dataset.botId || table.id || btn.textContent.trim();
+
+        // Встановлюємо стан із localStorage
+        const isOpen = localStorage.getItem(`bot-${botId}`) === 'true';
+        tbody.style.display = isOpen ? 'table-row-group' : 'none';
+
+        btn.addEventListener('click', (e) => {
+            const isCurrentlyOpen = tbody.style.display === 'table-row-group';
+            tbody.style.display = isCurrentlyOpen ? 'none' : 'table-row-group';
+
+            // Зберігаємо стан
+            localStorage.setItem(`bot-${botId}`, !isCurrentlyOpen);
+        });
+    });
+});
+</script>

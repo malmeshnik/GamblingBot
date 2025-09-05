@@ -1,11 +1,18 @@
 from django.db import models
 from django.utils import timezone
+from django.utils.safestring import mark_safe
 from django.utils.html import escape
 
+class UserStatus(models.TextChoices):
+    ACTIVE = "active", "Активний"
+    BLOCKED = "blocked", "Заблокував бота"
+    DELETED = "deleted", "Видалив акаунт"
+    FORBIDDEN = "forbidden", "Інша помилка"
 
 class User(models.Model):
+    bot = models.ForeignKey('Bot', on_delete=models.CASCADE)
     telegram_id = models.BigIntegerField(
-        unique=True, null=False, blank=False, verbose_name="Телеграм ID"
+        null=False, blank=False, verbose_name="Телеграм ID"
     )
     username = models.CharField(
         null=True, blank=True, max_length=100, verbose_name="Юзернейм"
@@ -25,14 +32,25 @@ class User(models.Model):
         verbose_name="Блогер який запросив",
     )
 
+    status = models.CharField(
+        max_length=20,
+        choices=UserStatus.choices,
+        default=UserStatus.ACTIVE,
+        verbose_name="Статус користувача"
+    )
+
     joined_at = models.DateTimeField(verbose_name="Додався в", auto_now_add=True)
 
+    def __str__(self):
+        return self.first_name
+    
     class Meta:
         verbose_name = "Користувач"
         verbose_name_plural = "Користувачі"
 
 
 class Message(models.Model):
+    bot = models.ForeignKey('Bot', on_delete=models.CASCADE)
     text = models.TextField(max_length=1024, verbose_name="Текст повідомлення")
     media = models.FileField(
         upload_to="media/", verbose_name="Медіафайл", null=True, blank=True
@@ -45,6 +63,7 @@ class Message(models.Model):
 
 
 class Bloger(models.Model):
+    bot = models.ForeignKey('Bot', on_delete=models.CASCADE)
     name = models.CharField(max_length=255, verbose_name="Ім'я блогера")
     ref_link_to_site = models.URLField(verbose_name="Реферальне посилання на сайт")
     invited_people = models.IntegerField(default=0, verbose_name="Запрошено людей")
@@ -61,12 +80,14 @@ class Bloger(models.Model):
 
 
 class ScheduledMessage(models.Model):
+    bot = models.ForeignKey('Bot', on_delete=models.CASCADE)
     text = models.TextField(
         verbose_name="Текст повідомлення",
-        help_text=escape(
-            "Для того щоб у розсилці вказати ім'я користувача, використайте {name} у потрібному місці. "
-            "Також підтримується HTML форматування тексту. "
-            "Наприклад: <b>Тут буде жирний текст</b>"
+        help_text = mark_safe(
+            "<div style='font-size:14px; color:#999;'>"
+            f"{escape('Для того щоб у розсилці вказати ім\'я користувача, використайте {name}. '
+                    'Підтримується HTML форматування: <b>жирний</b>, <i>курсив</i>.')}"
+            "</div>"
         )
     )
     button_text = models.CharField(max_length=100, verbose_name="Текст кнопки")
@@ -74,7 +95,11 @@ class ScheduledMessage(models.Model):
         blank=True,
         null=True,
         verbose_name="Посилання кнопки",
-        help_text="Якщо не вказати посилання, буде використанно реферальне посилання на сайт блогера, який  привів",
+        help_text=mark_safe(
+            """<div style='font-size:14px; color:#999;'>
+            Якщо не вказати посилання, буде використанно реферальне посилання на сайт блогера, який  привів
+            </div>"""
+        )
     )
 
     media = models.FileField(
@@ -94,6 +119,7 @@ class ScheduledMessage(models.Model):
 
 
 class Campain(models.Model):
+    bot = models.ForeignKey('Bot', on_delete=models.CASCADE)
     text = models.TextField(verbose_name="Текст повідомлення")
     button_text = models.CharField(max_length=100, verbose_name="Текст кнопки")
 
@@ -110,6 +136,7 @@ class Campain(models.Model):
 
 
 class MessageAfterStart(models.Model):
+    bot = models.ForeignKey('Bot', on_delete=models.CASCADE)
     text = models.TextField(verbose_name="Текст повідомлення")
     button_text = models.CharField(max_length=100, verbose_name="Текст кнопки")
     user = models.ForeignKey("User", on_delete=models.CASCADE)
@@ -121,3 +148,28 @@ class MessageAfterStart(models.Model):
     send_at = models.DateTimeField(verbose_name="Час відправки", default=timezone.now)
 
     sent = models.BooleanField(default=False, verbose_name="Відправлено")
+
+class Bot(models.Model):
+    name = models.CharField(max_length=100, verbose_name="Назва бота")
+    token = models.CharField(max_length=255, verbose_name="Токен")
+    bot_id = models.BigIntegerField(
+        blank=True, 
+        null=True, 
+        verbose_name='ID бота',
+        help_text='ID визначається автоматично його не потрібно заповнювати'
+    )
+    username = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True,
+        verbose_name='Юзернейм бота',
+        help_text='Юзернейм визначається автоматично'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.name
+    
+    class Meta:
+        verbose_name = 'Бот'
+        verbose_name_plural = 'Боти'

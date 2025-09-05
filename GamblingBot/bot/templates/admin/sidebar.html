@@ -1,0 +1,14 @@
+<div id="custom-sidebar">
+    <ul>
+    {% for app in app_list %}
+        <li class="app-{{ app.app_label }}">
+            <strong>{{ app.name }}</strong>
+            <ul>
+                {% for model in app.models %}
+                    <li><a href="{{ model.admin_url }}">{{ model.name }}</a></li>
+                {% endfor %}
+            </ul>
+        </li>
+    {% endfor %}
+    </ul>
+</div>
