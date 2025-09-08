@@ -44,26 +44,26 @@ def start_new_bot(sender, instance, created, **kwargs):
     import threading
     transaction.on_commit(lambda: threading.Thread(target=run_bot).start())
 
-@receiver(post_save, sender=Bot)
-def update_bot_menu(sender, instance: Bot, **kwargs):
-    if not instance.token:
-        return
+# @receiver(post_save, sender=Bot)
+# def update_bot_menu(sender, instance: Bot, **kwargs):
+#     if not instance.token:
+#         return
 
-    async def set_menu():
-        bot = AioBot(token=instance.token)
-        try:
-            if instance.button_text and instance.miniapp_link:
-                await bot.set_chat_menu_button(
-                    menu_button=MenuButtonWebApp(
-                        text=instance.button_text,
-                        web_app=WebAppInfo(url=instance.miniapp_link)
-                    )
-                )
+#     async def set_menu():
+#         bot = AioBot(token=instance.token)
+#         try:
+#             if instance.button_text and instance.miniapp_link:
+#                 await bot.set_chat_menu_button(
+#                     menu_button=MenuButtonWebApp(
+#                         text=instance.button_text,
+#                         web_app=WebAppInfo(url=instance.miniapp_link)
+#                     )
+#                 )
 
-                logger.info(f'Меню змінено для ботa {instance.username}')
-            else:
-                await bot.set_chat_menu_button(menu_button=MenuButtonDefault())
-        finally:
-            await bot.session.close()
+#                 logger.info(f'Меню змінено для ботa {instance.username}')
+#             else:
+#                 await bot.set_chat_menu_button(menu_button=MenuButtonDefault())
+#         finally:
+#             await bot.session.close()
 
-    asyncio.run(set_menu())
+#     asyncio.run(set_menu())
