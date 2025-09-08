@@ -3,9 +3,24 @@ import logging
 from urllib.parse import parse_qs
 
 from django.contrib import admin, messages
+from django.http import HttpRequest, HttpResponse
+from django.template.response import TemplateResponse
 
 from .models import *
 from .utils import check_bot
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
+console_handler = logging.StreamHandler()
+console_handler.setLevel(logging.INFO)
+
+formatter = logging.Formatter('%(asctime)s | %(levelname)s | %(name)s | %(message)s')
+console_handler.setFormatter(formatter)
+
+if not logger.handlers:
+    logger.addHandler(console_handler)
+
 
 class BotRelatedAdmin(admin.ModelAdmin):
     exclude = ('bot',)
@@ -65,6 +80,7 @@ class MyAdminSite(admin.AdminSite):
                     {'name': 'Блогери', 'admin_url': f'/admin/bot/bloger/?bot__id__exact={bot.id}'},
                     {'name': 'Заплановані повідомлення', 'admin_url': f'/admin/bot/scheduledmessage/?bot__id__exact={bot.id}'},
                     {'name': 'Повідомлення після старту', 'admin_url': f'/admin/bot/campain/?bot__id__exact={bot.id}'},
+                    {'name': 'Статистика', 'admin_url': f'/admin/bot/botstatistics/?bot__id__exact={bot.id}'},
                 ]
             })
         return app_list
@@ -91,8 +107,67 @@ class BlogerAdmin(BotRelatedAdmin):
     list_display = ('name', 'invited_people', 'ref_link_to_site', 'ref_link_to_bot')
     list_editable = ('ref_link_to_site',)
 
+class BotStatisticsAdmin(BotRelatedAdmin):
+    change_list_template = "admin/statistics.html"
+
+    def changelist_view(self, request: HttpRequest, extra_context=None):
+        bot_id = request.GET.get('bot__id__exact')
+
+        context = self.admin_site.each_context(request)
+        logger.info(f'Bot ID {bot_id}')
+
+        if bot_id:
+            active_percent = 0
+            users = User.objects.filter(bot_id=bot_id)
+            bot = Bot.objects.filter(id=bot_id).first()
+            logger.info(f'Users count for bot {bot.name}: {len(users)}')
+            title = f'📊 Статистика по боту "{bot.name}"'
+
+            stats = users.values('status').annotate(count=models.Count('status'))
+
+            stat_dict = {s['status']: s['count'] for s in stats}   
+            total = sum(stat_dict.values())
+            logger.info(f'Bot stats: {stats}')
+
+            # відсоток активних користувачів
+            active_count = stat_dict.get("active", 0)
+            if total > 0:
+                active_percent = round((active_count / total) * 100, 2)
+
+            context.update({
+                'bot_stats': stat_dict,
+                'bot': bot,
+                'active_percent': active_percent,
+                'stat_title': title
+            })
+
+        else:
+            title = f'📊 Статистика всіх ботів'
+            users = User.objects.all()
+
+            stats = users.values('status').annotate(count=models.Count('status'))
+            stat_dict = {s['status']: s['count'] for s in stats}
+            total = sum(stat_dict.values())
+
+            if total > 0:
+                active_percent = round((stat_dict.get('active', 0) / total) * 100, 2)
+
+            context.update({
+                'bot_stats': stat_dict,
+                'active_percent': active_percent,
+                'stat_title': title
+            })
+
+        return TemplateResponse(
+            request,
+            self.change_list_template,
+            context,
+        )
+        
+
 admin_site = MyAdminSite(name='myadmin')
 
+admin_site.register(BotStatistics, BotStatisticsAdmin)
 admin_site.register(User, BotRelatedAdmin)
 admin_site.register(Message, BotRelatedAdmin)
 admin_site.register(Bloger, BlogerAdmin)

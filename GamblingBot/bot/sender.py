@@ -11,8 +11,7 @@ from aiogram.exceptions import (
     TelegramRetryAfter,
 )
 from django.utils import timezone
-from .models import User, ScheduledMessage, MessageAfterStart
-from .UserEnum import UserStatus
+from .models import User, ScheduledMessage, MessageAfterStart, UserStatus
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +34,7 @@ async def send_message_safe(
                         media_file,
                         caption=msg_text,
                         reply_markup=keyboard,
+                        parse_mode='HTML'
                     )
                 elif mime and "video" in mime:
                     await bot.send_video(
@@ -42,6 +42,7 @@ async def send_message_safe(
                         media_file,
                         caption=msg_text,
                         reply_markup=keyboard,
+                        parse_mode='HTML'
                     )
                 else:
                     await bot.send_document(
@@ -49,10 +50,11 @@ async def send_message_safe(
                         media_file,
                         caption=msg_text,
                         reply_markup=keyboard,
+                        parse_mode='HTML'
                     )
             else:
                 await bot.send_message(
-                    int(user.telegram_id), msg_text, reply_markup=keyboard
+                    int(user.telegram_id), msg_text, reply_markup=keyboard, parse_mode='HTML'
                 )
 
             logger.info(f"✅ Повідомлення надіслано користувачу {user.telegram_id}")
@@ -61,18 +63,20 @@ async def send_message_safe(
 
         except TelegramForbiddenError as e:
             msg = str(e).lower()
-
             if 'blocked' in msg:
                 user.status = UserStatus.BLOCKED
-            elif 'deactivated' in msg:
+            else:
+                user.status = UserStatus.FORBIDDEN
+            logger.warning(f"⚠️ Невірний telegram_id: {user.telegram_id} Помилка: {e}")
+        except TelegramBadRequest as e:
+            msg = str(e).lower()
+            if 'deactivated' in msg:
+                user.status = UserStatus.DELETED
+            elif 'chat not found' in msg:
                 user.status = UserStatus.DELETED
             else:
                 user.status = UserStatus.FORBIDDEN
-            
-            logger.warning(f"🚫 Користувач {user.telegram_id} заблокував бота")
-        except TelegramBadRequest as e:
-            user.status = UserStatus.FORBIDDEN
-            logger.warning(f"⚠️ Невірний telegram_id: {user.telegram_id} Помилка: {e}")
+            logger.warning(f"🚫 Користувач {user.telegram_id} заблокував бота {e}")
         except TelegramRetryAfter as e:
             logger.warning(
                 f"⏳ Flood control для {user.telegram_id}, чекаємо {e.retry_after} сек..."
@@ -82,7 +86,7 @@ async def send_message_safe(
         except Exception as e:
             logger.error(f"❌ Помилка при надсиланні користувачу {user.telegram_id}: {e}")
         finally:
-            await sync_to_async(user.save)()
+            await sync_to_async(user.save)(update_fields=['status'])
 
         return False
 

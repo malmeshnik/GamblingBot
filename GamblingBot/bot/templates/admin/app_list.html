@@ -1,17 +1,16 @@
 <div id="custom-sidebar" class="module">
   <div class="sidebar-header">
-    <button id="add-bot-btn">
-      <a href="/admin/bot/bot/add">+ Додати бота</a>
-    </button>
+    <a href="/admin/bot/bot/add" class="top-btn add-bot">+ Додати бота</a>
+    <a href="/admin/bot/botstatistics" class="top-btn stats-bot">📊 Статистика всіх ботів</a>
   </div>
-    <ul class="app-list">
+  <ul class="app-list">
     {% for app in app_list %}
         <li class="app-{{ app.app_label }}">
-            <table>
+            <table data-bot-id="{{ app.bot_id }}">
               <caption class="toggle-btn">
-                <a href="/admin/bot/bot/{{ app.bot_id }}/change/"><b class = "app_name">{{ app.name }}</b></a>
+                <a href="/admin/bot/bot/{{ app.bot_id }}/change/"><b class="app_name">{{ app.name }}</b></a>
               </caption>
-                <tbody class="model-list">
+              <tbody class="model-list">
                 {% for model in app.models %}
                 <tr class="model-{{ model.name|lower }}">
                     <td>
@@ -22,12 +21,12 @@
                     </td>
                 </tr>
                 {% endfor %}
-                </tbody>
+              </tbody>
             </table>
         </li>
         <br>
     {% endfor %}
-    </ul>
+  </ul>
 </div>
 
 <style>
@@ -46,43 +45,81 @@
   color: #fff;
 }
 
-#add-bot-btn {
-    display: block;       
-    width: 100%;           
-    padding: 6px 10px;    
-    background-color: #5e7ce0; 
-    color: #fff;
-    font-size: 13px;
-    font-weight: 500;
-    text-align: center;
-    text-decoration: none;
-    white-space: nowrap;
-    cursor: pointer;
-    border: 1px solid #3f51b5;
-    border-radius: 3px;
-    box-sizing: border-box; /* щоб padding не виходив за ширину */
+/* ==== Верхні кнопки ==== */
+.sidebar-header {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.top-btn {
+  flex: 1;
+  padding: 8px 12px;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: center;
+  text-decoration: none;
+  border-radius: 6px;
+  transition: all 0.2s ease-in-out;
+  cursor: pointer;
+}
+
+.add-bot {
+  background: linear-gradient(135deg, #4caf50, #2e7d32);
+  color: #fff;
+  border: 1px solid #2e7d32;
+}
+
+.add-bot:hover {
+  background: linear-gradient(135deg, #66bb6a, #388e3c);
+}
+
+.stats-bot {
+  background: linear-gradient(135deg, #5e7ce0, #3f51b5);
+  color: #fff;
+  border: 1px solid #3f51b5;
+}
+
+.stats-bot:hover {
+  background: linear-gradient(135deg, #7986cb, #283593);
 }
 </style>
-
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-    // Toggle моделей під ботом
-    document.querySelectorAll('.toggle-btn').forEach(btn => {
-        const table = btn.closest('table');
-        const tbody = table.querySelector('.model-list');
-        const botId = table.dataset.botId || table.id || btn.textContent.trim();
+  document.querySelectorAll('#custom-sidebar table').forEach((table) => {
+    const caption = table.querySelector('caption.toggle-btn');
+    const tbody = table.querySelector('tbody.model-list');
+    if (!caption || !tbody) return;
 
-        // Встановлюємо стан із localStorage
-        const isOpen = localStorage.getItem(`bot-${botId}`) === 'true';
-        tbody.style.display = isOpen ? 'table-row-group' : 'none';
+    const botId = table.dataset.botId || caption.textContent.trim();
+    const storageKey = `bot-open-${botId}`;
 
-        btn.addEventListener('click', (e) => {
-            const isCurrentlyOpen = tbody.style.display === 'table-row-group';
-            tbody.style.display = isCurrentlyOpen ? 'none' : 'table-row-group';
+    // Створюємо іконку-стрілку, якщо її нема
+    let icon = caption.querySelector('.toggle-icon');
+    if (!icon) {
+      icon = document.createElement('span');
+      icon.className = 'toggle-icon';
+      icon.setAttribute('aria-hidden', 'true');
+      caption.prepend(icon);
+    }
 
-            // Зберігаємо стан
-            localStorage.setItem(`bot-${botId}`, !isCurrentlyOpen);
-        });
+    // Відновлюємо стан
+    const isOpen = localStorage.getItem(storageKey) === 'true';
+    tbody.style.display = isOpen ? 'table-row-group' : 'none';
+    caption.classList.toggle('is-open', isOpen);
+
+    // Клік по caption: якщо клікнули на <a> — даємо перейти; інакше — лише toggle
+    caption.addEventListener('click', (e) => {
+      if (e.target && e.target.closest('a')) return; // дозволяємо навігацію
+      e.preventDefault();
+
+      const currentlyOpen = tbody.style.display !== 'none';
+      const nextOpen = !currentlyOpen;
+
+      tbody.style.display = nextOpen ? 'table-row-group' : 'none';
+      caption.classList.toggle('is-open', nextOpen);
+      localStorage.setItem(storageKey, String(nextOpen));
     });
+  });
 });
 </script>

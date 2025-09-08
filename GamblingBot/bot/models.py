@@ -165,6 +165,8 @@ class Bot(models.Model):
         verbose_name='Юзернейм бота',
         help_text='Юзернейм визначається автоматично'
     )
+    button_text = models.CharField(null=True, blank=True,max_length=100, verbose_name='Назва кнопки для miniapp')
+    miniapp_link = models.URLField(null=True, blank=True, verbose_name='Посилання на сайт для miniapp')
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -173,3 +175,9 @@ class Bot(models.Model):
     class Meta:
         verbose_name = 'Бот'
         verbose_name_plural = 'Боти'
+
+class BotStatistics(models.Model):
+    class Meta:
+        managed = False
+        verbose_name = "Статистика бота"
+        verbose_name_plural = "Статистика бота"

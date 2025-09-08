@@ -24,24 +24,28 @@ async def send_message(message: Message, bloger: Bloger):
                 await message.answer_photo(
                     photo=file,
                     caption=msg.text,
-                    reply_markup=keyboard
+                    reply_markup=keyboard,
+                    parse_mode='HTML'
                 )
             elif "video" in mime:
                 await message.answer_video(
                     video=file,
                     caption=msg.text,
-                    reply_markup=keyboard
+                    reply_markup=keyboard,
+                    parse_mode='HTML'
                 )
             else:
                 await message.answer_document(
                     document=file,
                     caption=msg.text,
-                    reply_markup=keyboard
+                    reply_markup=keyboard,
+                    parse_mode='HTML'
                 )
         else:
             await message.answer(
                 text=msg.text,
-                reply_markup=keyboard
+                reply_markup=keyboard,
+                parse_mode='HTML'
             )
 
     except Exception as e:

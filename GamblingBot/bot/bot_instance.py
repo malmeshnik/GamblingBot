@@ -7,6 +7,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.jobstores.redis import RedisJobStore
 
 from aiogram import Bot as AiogramBot, Dispatcher
+from aiogram.types import MenuButtonWebApp, WebAppInfo
 from aiogram.client.default import DefaultBotProperties
 from aiogram.fsm.storage.redis import RedisStorage, DefaultKeyBuilder
 
@@ -29,6 +30,14 @@ async def setup_bot(bot_obj):
         token=bot_obj.token,
         default=DefaultBotProperties(parse_mode='HTML')
     )
+    if bot_obj.miniapp_link:
+        await bot_instance.set_chat_menu_button(
+            menu_button=MenuButtonWebApp(
+                text=bot_obj.button_text,
+                web_app=WebAppInfo(url=bot_obj.miniapp_link)
+            )
+        )
+        
     await bot_instance.delete_webhook()
     storage = RedisStorage.from_url(redis_dsn, key_builder=DefaultKeyBuilder(with_bot_id=True))
     dp_instance = Dispatcher(storage=storage)

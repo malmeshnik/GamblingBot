@@ -1,0 +1,45 @@
+{% extends "admin/base.html" %}
+
+{% block messages %}
+  <div class="module" style="width: 100%; padding: 0; margin: 0;">
+    <h2 class="bot-stats-title" style="text-align: center; font-size: 32px; font-weight: bold; margin-bottom: 30px;">
+        {{ stat_title }}
+    </h2>
+
+    {% if bot_stats %}
+        <table class="table table-striped" style="width: 100%;">
+          <thead>
+            <tr>
+              <th>Статус</th>
+              <th>Кількість</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>✅ Активні</td>
+              <td>{{ bot_stats.active|default:"0" }}</td>
+            </tr>
+            <tr>
+              <td>⛔ Заблокували</td>
+              <td>{{ bot_stats.blocked|default:"0" }}</td>
+            </tr>
+            <tr>
+              <td>🗑️ Видалили</td>
+              <td>{{ bot_stats.deleted|default:"0" }}</td>
+            </tr>
+            <tr>
+              <td>⚠️ Видалили аккаунт, або аккаунту більше не існує</td>
+              <td>{{ bot_stats.forbidden|default:"0" }}</td>
+            </tr>
+            <tr style="font-weight: bold;">
+              <td>Відсоток активних користувачів в боті</td>
+              <td>{{ active_percent }}%</td>
+            </tr>
+          </tbody>
+        </table>
+    {% else %}
+      <p>Немає користувачів</p>
+    {% endif %}
+  </div>
+
+{% endblock %}
