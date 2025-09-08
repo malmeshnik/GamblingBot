@@ -89,8 +89,8 @@ class BotAdmin(BotRelatedAdmin):
     def save_model(self, request, obj, form, change):
         try:
             bot_info = asyncio.run(check_bot(obj.token))
-            # obj.bot_id = bot_info.id
-            # obj.username = bot_info.username
+            obj.bot_id = bot_info.id
+            obj.username = bot_info.username
             logging.info(f'Bot username {bot_info.username}')
 
             self.message_user(request, f'Bot перевірено успішно: {bot_info.username}', level=messages.SUCCESS)
