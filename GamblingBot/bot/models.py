@@ -152,22 +152,22 @@ class MessageAfterStart(models.Model):
 class Bot(models.Model):
     name = models.CharField(max_length=100, verbose_name="Назва бота")
     token = models.CharField(max_length=255, verbose_name="Токен")
-    bot_id = models.BigIntegerField(
-        blank=True, 
-        null=True, 
-        verbose_name='ID бота',
-        help_text='ID визначається автоматично його не потрібно заповнювати'
-    )
-    username = models.CharField(
-        max_length=100,
-        blank=True,
-        null=True,
-        verbose_name='Юзернейм бота',
-        help_text='Юзернейм визначається автоматично'
-    )
-    button_text = models.CharField(null=True, blank=True,max_length=100, verbose_name='Назва кнопки для miniapp')
-    miniapp_link = models.URLField(null=True, blank=True, verbose_name='Посилання на сайт для miniapp')
-    created_at = models.DateTimeField(auto_now_add=True)
+    # bot_id = models.BigIntegerField(
+    #     blank=True, 
+    #     null=True, 
+    #     verbose_name='ID бота',
+    #     help_text='ID визначається автоматично його не потрібно заповнювати'
+    # )
+    # username = models.CharField(
+    #     max_length=100,
+    #     blank=True,
+    #     null=True,
+    #     verbose_name='Юзернейм бота',
+    #     help_text='Юзернейм визначається автоматично'
+    # )
+    # button_text = models.CharField(null=True, blank=True,max_length=100, verbose_name='Назва кнопки для miniapp')
+    # miniapp_link = models.URLField(null=True, blank=True, verbose_name='Посилання на сайт для miniapp')
+    # created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return self.name
