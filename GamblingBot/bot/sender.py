@@ -23,9 +23,18 @@ def get_keyboard(button_text: str, url: str):
 
 
 async def send_message_safe(
-    bot_token: str, user, msg_text, keyboard=None, media_file=None, mime=None
+    bot_token: str,
+    user,
+    msg_text,
+    keyboard=None,
+    media_file=None,
+    mime=None,
+    send_button=True,
 ):
     async with Bot(bot_token) as bot:
+        if not send_button:
+            keyboard = None
+            
         try:
             if media_file:
                 if mime and "image" in mime:
@@ -34,7 +43,7 @@ async def send_message_safe(
                         media_file,
                         caption=msg_text,
                         reply_markup=keyboard,
-                        parse_mode='HTML'
+                        parse_mode="HTML",
                     )
                 elif mime and "video" in mime:
                     await bot.send_video(
@@ -42,7 +51,7 @@ async def send_message_safe(
                         media_file,
                         caption=msg_text,
                         reply_markup=keyboard,
-                        parse_mode='HTML'
+                        parse_mode="HTML",
                     )
                 else:
                     await bot.send_document(
@@ -50,11 +59,14 @@ async def send_message_safe(
                         media_file,
                         caption=msg_text,
                         reply_markup=keyboard,
-                        parse_mode='HTML'
+                        parse_mode="HTML",
                     )
             else:
                 await bot.send_message(
-                    int(user.telegram_id), msg_text, reply_markup=keyboard, parse_mode='HTML'
+                    int(user.telegram_id),
+                    msg_text,
+                    reply_markup=keyboard,
+                    parse_mode="HTML",
                 )
 
             logger.info(f"✅ Повідомлення надіслано користувачу {user.telegram_id}")
@@ -63,16 +75,16 @@ async def send_message_safe(
 
         except TelegramForbiddenError as e:
             msg = str(e).lower()
-            if 'blocked' in msg:
+            if "blocked" in msg:
                 user.status = UserStatus.BLOCKED
             else:
                 user.status = UserStatus.FORBIDDEN
             logger.warning(f"⚠️ Невірний telegram_id: {user.telegram_id} Помилка: {e}")
         except TelegramBadRequest as e:
             msg = str(e).lower()
-            if 'deactivated' in msg:
+            if "deactivated" in msg:
                 user.status = UserStatus.DELETED
-            elif 'chat not found' in msg:
+            elif "chat not found" in msg:
                 user.status = UserStatus.DELETED
             else:
                 user.status = UserStatus.FORBIDDEN
@@ -82,11 +94,15 @@ async def send_message_safe(
                 f"⏳ Flood control для {user.telegram_id}, чекаємо {e.retry_after} сек..."
             )
             await asyncio.sleep(e.retry_after)
-            return await send_message_safe(bot_token, user, msg_text, keyboard, media_file, mime)
+            return await send_message_safe(
+                bot_token, user, msg_text, keyboard, media_file, mime
+            )
         except Exception as e:
-            logger.error(f"❌ Помилка при надсиланні користувачу {user.telegram_id}: {e}")
+            logger.error(
+                f"❌ Помилка при надсиланні користувачу {user.telegram_id}: {e}"
+            )
         finally:
-            await sync_to_async(user.save)(update_fields=['status'])
+            await sync_to_async(user.save)(update_fields=["status"])
 
         return False
 
@@ -138,14 +154,30 @@ async def send_scheduled_messages():
 
         async with semaphore:
             try:
-                await send_message_safe(bot_token, user, message_text, keyboard, media_file, mime)
+                await send_message_safe(
+                    bot_token,
+                    user,
+                    message_text,
+                    keyboard,
+                    media_file,
+                    mime,
+                    msg.send_button,
+                )
                 await asyncio.sleep(0.2)
             except TelegramRetryAfter as e:
                 logger.warning(
                     f"⏱ TelegramRetryAfter для {user.telegram_id}, чекаємо {e.retry_after}s"
                 )
                 await asyncio.sleep(e.retry_after)
-                await send_message_safe(bot_token, user, message_text, keyboard, media_file, mime)
+                await send_message_safe(
+                    bot_token,
+                    user,
+                    message_text,
+                    keyboard,
+                    media_file,
+                    mime,
+                    msg.send_button,
+                )
             except Exception as ex:
                 logger.error(
                     f"❌ Помилка при надсиланні користувачу {user.telegram_id}: {ex}"
@@ -153,7 +185,9 @@ async def send_scheduled_messages():
 
     for msg in messages:
         bot = await sync_to_async(lambda: msg.bot)()
-        users = await sync_to_async(list)(User.objects.select_related("bloger").filter(bot=bot))
+        users = await sync_to_async(list)(
+            User.objects.select_related("bloger").filter(bot=bot)
+        )
         msg.sent = True
         await sync_to_async(msg.save)()
         media_file = FSInputFile(msg.media.path) if msg.media else None
