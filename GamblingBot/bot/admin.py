@@ -146,6 +146,7 @@ class BotStatisticsAdmin(BotRelatedAdmin):
 
     def changelist_view(self, request: HttpRequest, extra_context=None):
         bot_id = request.GET.get('bot__id__exact')
+        folder_id = request.GET.get('folder__id__exact')
 
         context = self.admin_site.each_context(request)
         logger.info(f'Bot ID {bot_id}')
@@ -171,6 +172,29 @@ class BotStatisticsAdmin(BotRelatedAdmin):
             context.update({
                 'bot_stats': stat_dict,
                 'bot': bot,
+                'active_percent': active_percent,
+                'stat_title': title
+            })
+        elif folder_id:
+            active_percent = 0
+            folder = Folder.objects.get(id=folder_id)
+            users = User.objects.filter(bot__in=folder.bots.all())
+            
+            logger.info(f'Users count for bot {folder.name}: {len(users)}')
+            title = f'📊 Статистика по папці "{folder.name}"'
+
+            stats = users.values('status').annotate(count=models.Count('status'))
+
+            stat_dict = {s['status']: s['count'] for s in stats}   
+            total = sum(stat_dict.values())
+            logger.info(f'Bot stats: {stats}')
+
+            active_count = stat_dict.get("active", 0)
+            if total > 0:
+                active_percent = round((active_count / total) * 100, 2)
+
+            context.update({
+                'bot_stats': stat_dict,
                 'active_percent': active_percent,
                 'stat_title': title
             })
