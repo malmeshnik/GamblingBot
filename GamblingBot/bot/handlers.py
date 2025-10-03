@@ -12,7 +12,7 @@ from .models import User, Bloger, Campain, MessageAfterStart, Bot, Message as Db
 from .utils import send_message
 from .sender import send_message_safe, get_keyboard
 
-DIGITS = ["🕔 5", "🕔 4", "🕔 3", "🕔 2", "1️⃣"]
+DIGITS = ["🕔 5", "🕔 4", "🕔 3", "🕔 2", "🕔 1"]
 
 
 def create_router():
