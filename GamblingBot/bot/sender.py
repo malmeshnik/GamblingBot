@@ -38,7 +38,7 @@ async def send_message_safe(
         try:
             if media_file:
                 if mime and "image" in mime:
-                    await bot.send_photo(
+                    msg = await bot.send_photo(
                         int(user.telegram_id),
                         media_file,
                         caption=msg_text,
@@ -46,7 +46,7 @@ async def send_message_safe(
                         parse_mode="HTML",
                     )
                 elif mime and "video" in mime:
-                    await bot.send_video(
+                    msg = await bot.send_video(
                         int(user.telegram_id),
                         media_file,
                         caption=msg_text,
@@ -54,7 +54,7 @@ async def send_message_safe(
                         parse_mode="HTML",
                     )
                 else:
-                    await bot.send_document(
+                    msg = await bot.send_document(
                         int(user.telegram_id),
                         media_file,
                         caption=msg_text,
@@ -62,7 +62,7 @@ async def send_message_safe(
                         parse_mode="HTML",
                     )
             else:
-                await bot.send_message(
+                msg = await bot.send_message(
                     int(user.telegram_id),
                     msg_text,
                     reply_markup=keyboard,
@@ -71,7 +71,7 @@ async def send_message_safe(
 
             logger.info(f"✅ Повідомлення надіслано користувачу {user.telegram_id}")
             user.status = UserStatus.ACTIVE
-            return True
+            return msg
 
         except TelegramForbiddenError as e:
             msg = str(e).lower()
@@ -113,6 +113,7 @@ async def send_messages_after_start():
     )
 
     for msg in messages:
+        await sync_to_async(msg.delete)()
         media_file = FSInputFile(msg.media.path) if msg.media else None
         mime, _ = mimetypes.guess_type(msg.media.path) if msg.media else (None, None)
 
@@ -126,7 +127,6 @@ async def send_messages_after_start():
         keyboard = get_keyboard(msg.button_text, bloger.ref_link_to_site)
         await send_message_safe(bot_token, user, msg.text, keyboard, media_file, mime)
 
-        await sync_to_async(msg.delete)()
         logger.info(
             f"📨 Заплановане повідомлення {msg.id} розіслано користувачу {user.telegram_id}"
         )
@@ -139,7 +139,7 @@ async def send_scheduled_messages():
 
     semaphore = asyncio.Semaphore(10)
 
-    async def send_with_limit(user, msg, media_file, mime):
+    async def send_with_limit(user, bot, msg, media_file, mime):
         bloger = user.bloger
         if not bloger:
             return
@@ -149,7 +149,6 @@ async def send_scheduled_messages():
         message_text = (
             msg.text.format(name=user.first_name) if "{name}" in msg.text else msg.text
         )
-        bot = await sync_to_async(lambda: msg.bot)()
         bot_token = bot.token
 
         async with semaphore:
@@ -184,19 +183,22 @@ async def send_scheduled_messages():
                 )
 
     for msg in messages:
-        bot = await sync_to_async(lambda: msg.bot)()
-        users = await sync_to_async(list)(
-            User.objects.select_related("bloger").filter(bot=bot)
-        )
         msg.sent = True
-        await sync_to_async(msg.save)()
-        media_file = FSInputFile(msg.media.path) if msg.media else None
-        mime, _ = mimetypes.guess_type(msg.media.path) if msg.media else (None, None)
+        if await sync_to_async(lambda: msg.folder_id)():
+            bots = await sync_to_async(lambda: list(msg.folder.bots.all()))()
+        else:
+            bots = [await sync_to_async(lambda: msg.bot)()]
 
-        tasks = [send_with_limit(user, msg, media_file, mime) for user in users]
+        for bot in bots:
+            users = await sync_to_async(list)(
+                User.objects.select_related("bloger").filter(bot=bot)
+            )
+            await sync_to_async(msg.save)()
+            media_file = FSInputFile(msg.media.path) if msg.media else None
+            mime, _ = mimetypes.guess_type(msg.media.path) if msg.media else (None, None)
 
-        for chunk in [tasks[i : i + 5] for i in range(0, len(tasks), 5)]:
-            await asyncio.gather(*chunk, return_exceptions=True)
-            await asyncio.sleep(1)
+            tasks = [send_with_limit(user, bot, msg, media_file, mime) for user in users]
 
-        logger.info(f"📨 Заплановане повідомлення {msg.id} розіслано всім користувачам")
+            for chunk in [tasks[i : i + 5] for i in range(0, len(tasks), 5)]:
+                await asyncio.gather(*chunk, return_exceptions=True)
+                await asyncio.sleep(1)

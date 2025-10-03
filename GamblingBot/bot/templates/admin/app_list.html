@@ -1,32 +1,76 @@
 <div id="custom-sidebar" class="module">
   <div class="sidebar-header">
     <a href="/admin/bot/bot/add" class="top-btn add-bot">+ Додати бота</a>
+    <a href="/admin/bot/folder/add" class="top-btn add-bot">+ Додати папку</a>
     <a href="/admin/bot/botstatistics" class="top-btn stats-bot">📊 Статистика всіх ботів</a>
   </div>
-  <ul class="app-list">
-    {% for app in app_list %}
-        <li class="app-{{ app.app_label }}">
-            <table data-bot-id="{{ app.bot_id }}">
-              <caption class="toggle-btn">
-                <a href="/admin/bot/bot/{{ app.bot_id }}/change/"><b class="app_name">{{ app.name }}</b></a>
-              </caption>
-              <tbody class="model-list">
-                {% for model in app.models %}
-                <tr class="model-{{ model.name|lower }}">
-                    <td>
-                        <a href="{{ model.admin_url }}"
-                           class="{% if model.name == cl.opts.verbose_name %}selected{% endif %}">
-                           <b>{{ model.name }}</b>
+  <ul class="folder-list">
+    {% for folder in app_list %}
+      <li class="folder-{{ folder.id }}">
+        <table data-folder-id="{{ folder.id }}">
+          <caption class="toggle-folder">
+            <b class="folder_name">
+              <a href="/admin/bot/folder/1/change/">{{ folder.name }}</a>
+            </b>
+          </caption>
+          <tbody class="model-list">
+            <tr>
+              <td>
+                <a href="/admin/bot/message/?folder__id__exact={{ folder.folder_id }}">
+                  <b>Повідомлення</b>
+                </a>
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <a href="/admin/bot/scheduledmessage/?folder__id__exact={{ folder.folder_id }}">
+                  <b>Заплановані повідомлення</b>
+                </a>
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <a href="/admin/bot/campain/?folder__id__exact={{ folder.folder_id }}">
+                  <b>Повідомлення після старту</b>
+                </a>
+              </td>
+            </tr>
+          </tbody>
+          <tbody class="bot-list">
+            {% for app in folder.bots %}
+            <tr>
+              <td>
+                <table data-bot-id="{{ app.bot_id }}">
+                  <caption class="toggle-bot">
+                    <a href="/admin/bot/bot/{{ app.bot_id }}/change/">
+                      <b class="app_name">{{ app.name }}</b>
+                    </a>
+                  </caption>
+                  <tbody class="model-list">
+                    {% for model in app.models %}
+                    <tr class="model-{{ model.name|lower }}">
+                      <td>
+                        <a href="{{ model.admin_url }}">
+                          <b>{{ model.name }}</b>
                         </a>
-                    </td>
-                </tr>
-                {% endfor %}
-              </tbody>
-            </table>
-        </li>
-        <br>
+                      </td>
+                    </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </li>
+      <br>
     {% endfor %}
   </ul>
+</div>
+
+<div>
+  <a href="/admin/bot/bot" class="top-btn add-bot">Всі боти</a>
 </div>
 
 <style>
@@ -66,33 +110,66 @@
 </style>
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-  document.querySelectorAll('#custom-sidebar table').forEach((table) => {
-    const caption = table.querySelector('caption.toggle-btn');
-    const tbody = table.querySelector('tbody.model-list');
-    if (!caption || !tbody) return;
+  // ====== Папки ======
+  document.querySelectorAll('#custom-sidebar table[data-folder-id]').forEach((table) => {
+    const caption = table.querySelector('caption.toggle-folder');
+    // ховаємо і ботів, і посилання папки
+    const tbodyBots = table.querySelector('tbody.bot-list');
+    const tbodyModels = table.querySelector('tbody.model-list'); // <--- для посилань папки
 
-    const botId = table.dataset.botId || caption.textContent.trim();
-    const storageKey = `bot-open-${botId}`;
+    if (!caption) return;
 
-    // Створюємо іконку-стрілку, якщо її нема
+    const folderId = table.dataset.folderId;
+    const storageKey = `folder-open-${folderId}`;
+
     let icon = caption.querySelector('.toggle-icon');
     if (!icon) {
       icon = document.createElement('span');
       icon.className = 'toggle-icon';
-      icon.setAttribute('aria-hidden', 'true');
       caption.prepend(icon);
     }
 
-    // Відновлюємо стан
+    const isOpen = localStorage.getItem(storageKey) === 'true';
+    if (tbodyBots) tbodyBots.style.display = isOpen ? 'table-row-group' : 'none';
+    if (tbodyModels) tbodyModels.style.display = isOpen ? 'table-row-group' : 'none';
+    caption.classList.toggle('is-open', isOpen);
+
+    caption.addEventListener('click', (e) => {
+      e.preventDefault();
+      const currentlyOpenBots = tbodyBots ? tbodyBots.style.display !== 'none' : false;
+      const currentlyOpenModels = tbodyModels ? tbodyModels.style.display !== 'none' : false;
+      const nextOpen = !(currentlyOpenBots || currentlyOpenModels);
+
+      if (tbodyBots) tbodyBots.style.display = nextOpen ? 'table-row-group' : 'none';
+      if (tbodyModels) tbodyModels.style.display = nextOpen ? 'table-row-group' : 'none';
+      caption.classList.toggle('is-open', nextOpen);
+      localStorage.setItem(storageKey, String(nextOpen));
+    });
+  });
+
+  // ====== Боти ====== (залишаємо без змін)
+  document.querySelectorAll('#custom-sidebar table[data-bot-id]').forEach((table) => {
+    const caption = table.querySelector('caption.toggle-bot');
+    const tbody = table.querySelector('tbody.model-list');
+    if (!caption || !tbody) return;
+
+    const botId = table.dataset.botId;
+    const storageKey = `bot-open-${botId}`;
+
+    let icon = caption.querySelector('.toggle-icon');
+    if (!icon) {
+      icon = document.createElement('span');
+      icon.className = 'toggle-icon';
+      caption.prepend(icon);
+    }
+
     const isOpen = localStorage.getItem(storageKey) === 'true';
     tbody.style.display = isOpen ? 'table-row-group' : 'none';
     caption.classList.toggle('is-open', isOpen);
 
-    // Клік по caption: якщо клікнули на <a> — даємо перейти; інакше — лише toggle
     caption.addEventListener('click', (e) => {
-      if (e.target && e.target.closest('a')) return; // дозволяємо навігацію
+      if (e.target.closest('a')) return;
       e.preventDefault();
-
       const currentlyOpen = tbody.style.display !== 'none';
       const nextOpen = !currentlyOpen;
 

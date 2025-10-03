@@ -54,36 +54,67 @@ class BotRelatedAdmin(admin.ModelAdmin):
                 if bot_id:
                     obj.bot_id = bot_id
 
+        if hasattr(obj, 'folder_id'):
+            if not obj.folder_id:
+                folder_id = None
+
+                if request.GET.get('folder__id__exact'):
+                    folder_id = request.GET['folder__id__exact']
+
+                elif request.GET.get('_changelist_filters'):
+                    filters = parse_qs(request.GET['_changelist_filters'])
+
+                    if 'folder__id__exact' in filters:
+                        folder_id = filters['folder__id__exact'][0]
+                        
+                if folder_id:
+                    obj.folder_id = folder_id
+
         super().save_model(request, obj, form, change)
 
     def get_queryset(self, request):
         qs = super().get_queryset(request)
         bot_id = request.GET.get('bot__id__exact')
+        folder_id = request.GET.get('folder__id__exact')
         if bot_id:
             return qs.filter(bot_id=bot_id)
+        elif folder_id: 
+            return qs.filter(folder_id=folder_id)
         return qs
 
 class MyAdminSite(admin.AdminSite):
     site_header = "Управління гемблінговими ботами"
 
     def get_app_list(self, request):
-        bots = Bot.objects.all()
+        folders = Folder.objects.prefetch_related("bots")
         app_list = []
-        for bot in bots:
-            app_list.append({
-                'name': bot.name,
-                'app_label': f'bot_{bot.id}',
-                'bot_id': bot.id,
-                'models': [
-                    {'name': 'Користувачі', 'admin_url': f'/admin/bot/user/?bot__id__exact={bot.id}'},
-                    {'name': 'Повідомлення', 'admin_url': f'/admin/bot/message/?bot__id__exact={bot.id}'},
-                    {'name': 'Блогери', 'admin_url': f'/admin/bot/bloger/?bot__id__exact={bot.id}'},
-                    {'name': 'Заплановані повідомлення', 'admin_url': f'/admin/bot/scheduledmessage/?bot__id__exact={bot.id}'},
-                    {'name': 'Повідомлення після старту', 'admin_url': f'/admin/bot/campain/?bot__id__exact={bot.id}'},
-                    {'name': 'Статистика', 'admin_url': f'/admin/bot/botstatistics/?bot__id__exact={bot.id}'},
-                ]
-            })
+
+        for folder in folders:
+            folder_dict = {
+                "name": folder.name,
+                "id": f"folder_{folder.id}",
+                "bots": [],
+                "folder_id": folder.id
+            }
+
+            for bot in folder.bots.all():
+                folder_dict["bots"].append({
+                    "name": bot.name,
+                    "app_label": f"bot_{bot.id}",
+                    "bot_id": bot.id,
+                    "models": [
+                        {"name": "Користувачі", "admin_url": f"/admin/bot/user/?bot__id__exact={bot.id}"},
+                        {"name": "Повідомлення", "admin_url": f"/admin/bot/message/?bot__id__exact={bot.id}"},
+                        {"name": "Блогери", "admin_url": f"/admin/bot/bloger/?bot__id__exact={bot.id}"},
+                        {"name": "Заплановані повідомлення", "admin_url": f"/admin/bot/scheduledmessage/?bot__id__exact={bot.id}"},
+                        {"name": "Повідомлення після старту", "admin_url": f"/admin/bot/campain/?bot__id__exact={bot.id}"},
+                        {"name": "Статистика", "admin_url": f"/admin/bot/botstatistics/?bot__id__exact={bot.id}"},
+                    ]
+                })
+            app_list.append(folder_dict)
+
         return app_list
+
     
 class BotAdmin(BotRelatedAdmin):
     def save_model(self, request, obj, form, change):
@@ -106,6 +137,9 @@ class BotAdmin(BotRelatedAdmin):
 class BlogerAdmin(BotRelatedAdmin):
     list_display = ('name', 'invited_people', 'ref_link_to_site', 'ref_link_to_bot')
     list_editable = ('ref_link_to_site',)
+
+class FolderAdmin(BotRelatedAdmin):
+    list_display = ('name', )
 
 class BotStatisticsAdmin(BotRelatedAdmin):
     change_list_template = "admin/statistics.html"
@@ -174,3 +208,4 @@ admin_site.register(Bloger, BlogerAdmin)
 admin_site.register(ScheduledMessage, BotRelatedAdmin)
 admin_site.register(Campain, BotRelatedAdmin)
 admin_site.register(Bot, BotAdmin)
+admin_site.register(Folder, FolderAdmin)

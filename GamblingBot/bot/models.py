@@ -52,12 +52,29 @@ class User(models.Model):
 
 
 class Message(models.Model):
-    bot = models.ForeignKey("Bot", on_delete=models.CASCADE)
+    bot = models.ForeignKey("Bot", on_delete=models.CASCADE, blank=True, null=True)
+    folder = models.ForeignKey(
+        "Folder",
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        related_name="messages",
+        verbose_name="Папка",
+    )
     text = models.TextField(max_length=1024, verbose_name="Текст повідомлення")
     media = models.FileField(
         upload_to="media/", verbose_name="Медіафайл", null=True, blank=True
     )
     button_text = models.CharField(max_length=32, verbose_name="Текст кнопки")
+    send_digits = models.BooleanField(
+        default=False,
+        verbose_name="Відправляти цифри перед посилання",
+        help_text="Для того щоб відправилось повідомлення з відліком цифр, потірбно створити друге повідомлення",
+    )
+    message_for_digits = models.BooleanField(
+        default=False,
+        verbose_name="Використовувати це повідомлення перед відліком цифр?",
+    )
 
     class Meta:
         verbose_name = "Повідомлення"
@@ -82,7 +99,15 @@ class Bloger(models.Model):
 
 
 class ScheduledMessage(models.Model):
-    bot = models.ForeignKey("Bot", on_delete=models.CASCADE)
+    bot = models.ForeignKey("Bot", on_delete=models.CASCADE, blank=True, null=True)
+    folder = models.ForeignKey(
+        "Folder",
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        related_name="scheduled_messages",
+        verbose_name="Папка",
+    )
     text = models.TextField(
         verbose_name="Текст повідомлення",
         help_text=mark_safe(
@@ -104,7 +129,7 @@ class ScheduledMessage(models.Model):
         ),
     )
 
-    send_button = models.BooleanField(default=True, verbose_name='Відправити кнопку')
+    send_button = models.BooleanField(default=True, verbose_name="Відправити кнопку")
 
     media = models.FileField(
         upload_to="scheduled_media/", blank=True, null=True, verbose_name="Медіа файл"
@@ -123,7 +148,15 @@ class ScheduledMessage(models.Model):
 
 
 class Campain(models.Model):
-    bot = models.ForeignKey("Bot", on_delete=models.CASCADE)
+    bot = models.ForeignKey("Bot", on_delete=models.CASCADE, blank=True, null=True)
+    folder = models.ForeignKey(
+        "Folder",
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        related_name="campains",
+        verbose_name="Папка",
+    )
     text = models.TextField(verbose_name="Текст повідомлення")
     button_text = models.CharField(max_length=100, verbose_name="Текст кнопки")
 
@@ -157,6 +190,19 @@ class MessageAfterStart(models.Model):
 class Bot(models.Model):
     name = models.CharField(max_length=100, verbose_name="Назва бота")
     token = models.CharField(max_length=255, verbose_name="Токен")
+    use_our_messages = models.BooleanField(
+        default=True,
+        verbose_name="Використовувати повідомлення бота",
+        help_text="Якщо не вказати це параметр будуть використовуватись повідомленя які вказані в папці",
+    )
+    folder = models.ForeignKey(
+        "Folder",
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        related_name="bots",
+        verbose_name="Папка",
+    )
     bot_id = models.BigIntegerField(
         blank=True,
         null=True,
@@ -191,3 +237,14 @@ class BotStatistics(models.Model):
         managed = False
         verbose_name = "Статистика бота"
         verbose_name_plural = "Статистика бота"
+
+
+class Folder(models.Model):
+    name = models.CharField(max_length=100, verbose_name="Папка")
+
+    def __str__(self):
+        return self.name
+
+    class Meta:
+        verbose_name = "Папка"
+        verbose_name_plural = "Папки"
