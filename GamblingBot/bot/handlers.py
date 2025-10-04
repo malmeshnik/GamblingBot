@@ -83,7 +83,7 @@ def create_router():
         if bot.use_our_messages:
             messages = await sync_to_async(list)(
                 DbMessage.objects.filter(bot=bot, message_for_digits=True)
-            )()
+            )
         else:
             folder = await sync_to_async(lambda: bot.folder)()
             messages = await sync_to_async(list)(
