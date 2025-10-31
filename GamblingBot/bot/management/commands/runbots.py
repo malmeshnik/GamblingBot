@@ -30,9 +30,8 @@ class Command(BaseCommand):
                         'type': 'memory'
                     },
                     'apscheduler.executors.default': {
-                        # важливо: AsyncIOExecutor дозволяє корутинам виконуватись правильно
-                        'class': 'apscheduler.executors.asyncio:AsyncIOExecutor',
-                        'max_workers': 10
+                        # AsyncIOExecutor НЕ приймає параметр max_workers
+                        'class': 'apscheduler.executors.asyncio:AsyncIOExecutor'
                     },
                     'apscheduler.job_defaults.coalesce': True,
                     'apscheduler.job_defaults.max_instances': 1,
