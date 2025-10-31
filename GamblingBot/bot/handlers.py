@@ -101,37 +101,39 @@ def create_router():
             if first_message.media
             else (None, None)
         )
-        msg = await send_message_safe(
-            bot.token, user, first_message.text, keyboard, media_file, mime
-        )
-        for message in messages[1:]:
-            await asyncio.sleep(2)
-            msg = await msg.edit_text(message.text)
 
-        for digit in DIGITS:
-            await asyncio.sleep(1)
-            msg = await msg.edit_text(digit)
+        async with Bot(bot.token) as bot:
+            msg = await send_message_safe(
+                bot, user, first_message.text, keyboard, media_file, mime
+            )
+            for message in messages[1:]:
+                await asyncio.sleep(2)
+                msg = await msg.edit_text(message.text)
 
-        await msg.delete()
-        if bot.use_our_messages:
-            main_message = await sync_to_async(
-                DbMessage.objects.filter(bot=bot, message_for_digits=False, send_digits=False).first
-            )()
-        else:
-            main_message = await sync_to_async(
-                DbMessage.objects.filter(folder=await sync_to_async(lambda: bot.folder)(), message_for_digits=False, send_digits=False).first
-            )()
-        keyboard = get_keyboard(main_message.button_text, await sync_to_async(lambda: user.bloger.ref_link_to_site)())
-        media_file = (
-            FSInputFile(main_message.media.path) if main_message.media else None
-        )
-        mime, _ = (
-            mimetypes.guess_type(main_message.media.path)
-            if main_message.media
-            else (None, None)
-        )
-        msg = await send_message_safe(
-            bot.token, user, main_message.text, keyboard, media_file, mime
-        )
+            for digit in DIGITS:
+                await asyncio.sleep(1)
+                msg = await msg.edit_text(digit)
+
+            await msg.delete()
+            if bot.use_our_messages:
+                main_message = await sync_to_async(
+                    DbMessage.objects.filter(bot=bot, message_for_digits=False, send_digits=False).first
+                )()
+            else:
+                main_message = await sync_to_async(
+                    DbMessage.objects.filter(folder=await sync_to_async(lambda: bot.folder)(), message_for_digits=False, send_digits=False).first
+                )()
+            keyboard = get_keyboard(main_message.button_text, await sync_to_async(lambda: user.bloger.ref_link_to_site)())
+            media_file = (
+                FSInputFile(main_message.media.path) if main_message.media else None
+            )
+            mime, _ = (
+                mimetypes.guess_type(main_message.media.path)
+                if main_message.media
+                else (None, None)
+            )
+            msg = await send_message_safe(
+                bot, user, main_message.text, keyboard, media_file, mime
+            )
 
     return router
