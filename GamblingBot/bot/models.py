@@ -76,6 +76,11 @@ class Message(models.Model):
         verbose_name="Використовувати це повідомлення перед відліком цифр?",
     )
 
+    term = models.BooleanField(
+        default=False,
+        verbose_name="Підтвердження умов",
+    )
+
     class Meta:
         verbose_name = "Повідомлення"
         verbose_name_plural = "Повідомлення"

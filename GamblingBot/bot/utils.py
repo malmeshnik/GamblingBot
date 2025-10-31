@@ -10,24 +10,33 @@ from .models import Bloger, User, Message as DBMessage
 
 
 def get_first_message(bloger):
-    if bloger.bot.use_our_messages:
-        msg = DBMessage.objects.filter(bot=bloger.bot, message_for_digits=False).first()
-    else:
-        msg = DBMessage.objects.filter(folder=bloger.bot.folder, message_for_digits=False).first()
+    if bloger:
+        if bloger.bot.use_our_messages:
+            msg = DBMessage.objects.filter(
+                bot=bloger.bot, message_for_digits=False
+            ).first()
+        else:
+            msg = DBMessage.objects.filter(
+                folder=bloger.bot.folder, message_for_digits=False
+            ).first()
 
-    return msg
+        return msg
 
 
-async def send_message(message: Message, bloger: Bloger):
+async def send_message(message: Message, bloger: Bloger, msg_db: DBMessage = None):
     try:
         msg = await sync_to_async(get_first_message)(bloger)
-        if msg.send_digits:
+        if msg_db:
+            callback_data = "accept_terms"
+        elif msg.send_digits:
             callback_data = "send_digits"
         else:
             callback_data = None
 
+        msg = msg_db if msg_db else msg
+
         keyboard = await get_keyboard(
-            msg.button_text, bloger.ref_link_to_site, callback_data
+            msg.button_text, bloger.ref_link_to_site if bloger else None, callback_data
         )
 
         if msg.media:

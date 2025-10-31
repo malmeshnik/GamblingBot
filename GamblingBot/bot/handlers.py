@@ -15,6 +15,61 @@ from .sender import send_message_safe, get_keyboard
 DIGITS = ["🕔 5", "🕔 4", "🕔 3", "🕔 2", "🕔 1"]
 
 
+async def save_user(ref_code, message: Message):
+    if ref_code.startswith("ref_"):
+        bloger_id = ref_code.split("_")[1]
+        bloger = await sync_to_async(Bloger.objects.get)(id=bloger_id)
+        bot = await sync_to_async(lambda: bloger.bot)()
+
+        user, created = await sync_to_async(User.objects.get_or_create)(
+            telegram_id=message.from_user.id,
+            bot=bot,
+            defaults={
+                "username": message.from_user.username,
+                "first_name": message.from_user.first_name,
+                "last_name": message.from_user.last_name,
+                "bloger": bloger,
+            },
+        )
+
+        return created, user, bloger, bot
+
+
+async def send_first_massage(args, message: Message):
+    if len(args) > 1:
+        ref_code = args[1]
+
+        created, user, bloger, bot = await save_user(ref_code, message)
+
+        if created:
+            bloger.invited_people += 1
+            await sync_to_async(bloger.save)()
+
+            if bot.use_our_messages:
+                campains = await sync_to_async(
+                    lambda: list(Campain.objects.filter(bot=bot))
+                )()
+            else:
+                campains = await sync_to_async(
+                    lambda: list(Campain.objects.filter(folder=bot.folder))
+                )()
+            for campain in campains:
+                send_time = timezone.now() + timezone.timedelta(
+                    minutes=campain.delay_minutes
+                )
+                print(f"time to sent message: {send_time}")
+                await sync_to_async(MessageAfterStart.objects.create)(
+                    bot=bot,
+                    user=user,
+                    text=campain.text,
+                    button_text=campain.button_text,
+                    media=campain.media,
+                    send_at=send_time,
+                )
+
+        await send_message(message, bloger)
+
+
 def create_router():
     router = Router()
 
@@ -22,53 +77,32 @@ def create_router():
     async def start(message: Message):
         args = message.text.split()
         logging.info("Отримано повідомлення")
+        term_msg = await sync_to_async(DbMessage.objects.filter(term=True).first)()
 
-        if len(args) > 1:
+        if term_msg:
             ref_code = args[1]
+            created, user, bloger, bot = await save_user(ref_code, message)
+            await send_message(message, bloger=None, msg_db=term_msg)
+        else:
+            await send_first_massage(args, message)
 
-            if ref_code.startswith("ref_"):
-                bloger_id = ref_code.split("_")[1]
-                bloger = await sync_to_async(Bloger.objects.get)(id=bloger_id)
-                bot = await sync_to_async(lambda: bloger.bot)()
+    @router.callback_query(F.data == "accept_terms")
+    async def accept_terms(query: CallbackQuery):
+        user = await sync_to_async(
+            User.objects.filter(
+                telegram_id=query.message.chat.id, bot__token=query.bot.token
+            ).first
+        )()
 
-                user, created = await sync_to_async(User.objects.get_or_create)(
-                    telegram_id=message.from_user.id,
-                    bot=bot,
-                    defaults={
-                        "username": message.from_user.username,
-                        "first_name": message.from_user.first_name,
-                        "last_name": message.from_user.last_name,
-                        "bloger": bloger,
-                    },
-                )
+        if not user:
+            logging.warning(f"User not found for chat_id: {query.message.chat.id}")
+            return
+            
+        bloger = await sync_to_async(lambda: user.bloger)()
 
-                if created:
-                    bloger.invited_people += 1
-                    await sync_to_async(bloger.save)()
-
-                    if bot.use_our_messages:
-                        campains = await sync_to_async(
-                            lambda: list(Campain.objects.filter(bot=bot))
-                        )()
-                    else:
-                        campains = await sync_to_async(
-                            lambda: list(Campain.objects.filter(folder=bot.folder))
-                        )()
-                    for campain in campains:
-                        send_time = timezone.now() + timezone.timedelta(
-                            minutes=campain.delay_minutes
-                        )
-                        print(f"time to sent message: {send_time}")
-                        await sync_to_async(MessageAfterStart.objects.create)(
-                            bot=bot,
-                            user=user,
-                            text=campain.text,
-                            button_text=campain.button_text,
-                            media=campain.media,
-                            send_at=send_time,
-                        )
-
-                await send_message(message, bloger)
+        await query.message.delete()
+        
+        await send_message(query.message, bloger=bloger)
 
     @router.callback_query(F.data == "send_digits")
     async def send_digits(query: CallbackQuery):
@@ -117,13 +151,22 @@ def create_router():
             await msg.delete()
             if bot.use_our_messages:
                 main_message = await sync_to_async(
-                    DbMessage.objects.filter(bot=bot, message_for_digits=False, send_digits=False).first
+                    DbMessage.objects.filter(
+                        bot=bot, message_for_digits=False, send_digits=False
+                    ).first
                 )()
             else:
                 main_message = await sync_to_async(
-                    DbMessage.objects.filter(folder=await sync_to_async(lambda: bot.folder)(), message_for_digits=False, send_digits=False).first
+                    DbMessage.objects.filter(
+                        folder=await sync_to_async(lambda: bot.folder)(),
+                        message_for_digits=False,
+                        send_digits=False,
+                    ).first
                 )()
-            keyboard = get_keyboard(main_message.button_text, await sync_to_async(lambda: user.bloger.ref_link_to_site)())
+            keyboard = get_keyboard(
+                main_message.button_text,
+                await sync_to_async(lambda: user.bloger.ref_link_to_site)(),
+            )
             media_file = (
                 FSInputFile(main_message.media.path) if main_message.media else None
             )
