@@ -4,7 +4,7 @@ import mimetypes
 from asgiref.sync import sync_to_async
 
 from django.utils import timezone
-from aiogram import Router, F
+from aiogram import Router, F, Bot as TgBot
 from aiogram.types import Message, CallbackQuery, FSInputFile
 from aiogram.filters.command import CommandStart
 
@@ -102,7 +102,7 @@ def create_router():
             else (None, None)
         )
 
-        async with Bot(bot.token) as bot:
+        async with TgBot(bot.token) as bot:
             msg = await send_message_safe(
                 bot, user, first_message.text, keyboard, media_file, mime
             )
