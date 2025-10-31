@@ -102,9 +102,9 @@ def create_router():
             else (None, None)
         )
 
-        async with TgBot(bot.token) as bot:
+        async with TgBot(bot.token) as tg_bot:
             msg = await send_message_safe(
-                bot, user, first_message.text, keyboard, media_file, mime
+                tg_bot, user, first_message.text, keyboard, media_file, mime
             )
             for message in messages[1:]:
                 await asyncio.sleep(2)
@@ -133,7 +133,7 @@ def create_router():
                 else (None, None)
             )
             msg = await send_message_safe(
-                bot, user, main_message.text, keyboard, media_file, mime
+                tg_bot, user, main_message.text, keyboard, media_file, mime
             )
 
     return router
