@@ -17,11 +17,12 @@ from .models import User, ScheduledMessage, MessageAfterStart, UserStatus
 # Налаштування логера
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
-formatter = logging.Formatter('%(asctime)s [%(levelname)s] [%(name)s] %(message)s')
+formatter = logging.Formatter("%(asctime)s [%(levelname)s] [%(name)s] %(message)s")
 if not logger.handlers:
-    file_handler = logging.FileHandler('bot_sender.log')
+    file_handler = logging.FileHandler("bot_sender.log")
     file_handler.setFormatter(formatter)
     logger.addHandler(file_handler)
+
 
 def get_keyboard(button_text: str, url: str):
     logger.debug(f"🔘 Створення клавіатури з текстом: {button_text} та URL: {url}")
@@ -29,7 +30,16 @@ def get_keyboard(button_text: str, url: str):
     kb.button(text=button_text, url=url)
     return kb.as_markup()
 
-async def send_message_safe(bot: Bot, user, msg_text, keyboard=None, media_file=None, mime=None, send_button=True):
+
+async def send_message_safe(
+    bot: Bot,
+    user,
+    msg_text,
+    keyboard=None,
+    media_file=None,
+    mime=None,
+    send_button=True,
+):
     """
     Очікує aiogram.Bot екземпляр в `bot`.
     Повертає aiogram Message при успіху або False при помилці.
@@ -45,17 +55,46 @@ async def send_message_safe(bot: Bot, user, msg_text, keyboard=None, media_file=
         if media_file:
             logger.debug(f"📎 Відправка медіа типу {mime} для {user.telegram_id}")
             if mime and "image" in mime:
-                sent = await bot.send_photo(int(user.telegram_id), media_file, caption=msg_text, reply_markup=keyboard, parse_mode="HTML")
+                sent = await bot.send_photo(
+                    int(user.telegram_id),
+                    media_file,
+                    caption=msg_text,
+                    reply_markup=keyboard,
+                    parse_mode="HTML"
+                    
+                )
             elif mime and "video" in mime:
-                sent = await bot.send_video(int(user.telegram_id), media_file, caption=msg_text, reply_markup=keyboard, parse_mode="HTML")
+                sent = await bot.send_video(
+                    int(user.telegram_id),
+                    media_file,
+                    caption=msg_text,
+                    reply_markup=keyboard,
+                    parse_mode="HTML",
+                    
+                )
             else:
-                sent = await bot.send_document(int(user.telegram_id), media_file, caption=msg_text, reply_markup=keyboard, parse_mode="HTML")
+                sent = await bot.send_document(
+                    int(user.telegram_id),
+                    media_file,
+                    caption=msg_text,
+                    reply_markup=keyboard,
+                    parse_mode="HTML",
+                    
+                )
         else:
             logger.debug("💬 Відправка текстового повідомлення")
-            sent = await bot.send_message(int(user.telegram_id), msg_text, reply_markup=keyboard, parse_mode="HTML")
+            sent = await bot.send_message(
+                int(user.telegram_id),
+                msg_text,
+                reply_markup=keyboard,
+                parse_mode="HTML",
+                disable_web_page_preview=True,
+            )
 
         duration = (datetime.now() - start_time).total_seconds()
-        logger.info(f"✅ Повідомлення успішно надіслано користувачу {user.telegram_id} за {duration:.2f} сек")
+        logger.info(
+            f"✅ Повідомлення успішно надіслано користувачу {user.telegram_id} за {duration:.2f} сек"
+        )
         user.status = UserStatus.ACTIVE
         await sync_to_async(user.save)(update_fields=["status"])
         return sent
@@ -67,7 +106,9 @@ async def send_message_safe(bot: Bot, user, msg_text, keyboard=None, media_file=
             logger.warning(f"🚫 Користувач {user.telegram_id} заблокував бота")
         else:
             user.status = UserStatus.FORBIDDEN
-            logger.warning(f"⛔ Доступ заборонено для користувача {user.telegram_id}: {e}")
+            logger.warning(
+                f"⛔ Доступ заборонено для користувача {user.telegram_id}: {e}"
+            )
         await sync_to_async(user.save)(update_fields=["status"])
         return False
 
@@ -84,16 +125,23 @@ async def send_message_safe(bot: Bot, user, msg_text, keyboard=None, media_file=
 
     except TelegramRetryAfter as e:
         wait = e.retry_after
-        logger.warning(f"⏳ Flood control для {user.telegram_id}, очікування {wait} сек")
+        logger.warning(
+            f"⏳ Flood control для {user.telegram_id}, очікування {wait} сек"
+        )
         await asyncio.sleep(wait)
         logger.info(f"🔄 Повторна спроба надсилання для {user.telegram_id}")
-        return await send_message_safe(bot, user, msg_text, keyboard, media_file, mime, send_button)
+        return await send_message_safe(
+            bot, user, msg_text, keyboard, media_file, mime, send_button
+        )
 
     except Exception as e:
-        logger.error(f"❌ Невідома помилка при відправці {user.telegram_id}: {e}", exc_info=True)
+        logger.error(
+            f"❌ Невідома помилка при відправці {user.telegram_id}: {e}", exc_info=True
+        )
         user.status = UserStatus.FORBIDDEN
         await sync_to_async(user.save)(update_fields=["status"])
         return False
+
 
 async def send_messages_after_start():
     start_time = datetime.now()
@@ -101,8 +149,7 @@ async def send_messages_after_start():
 
     messages = await sync_to_async(list)(
         ScheduledMessage.objects.filter(
-            send_at__lte=timezone.now(),
-            sent=False
+            send_at__lte=timezone.now(), sent=False
         ).select_for_update()
     )
 
@@ -123,21 +170,34 @@ async def send_messages_after_start():
             continue
 
         async with Bot(bot_obj.token) as bot_instance:
-            keyboard = get_keyboard(msg.button_text, bloger.ref_link_to_site) if bloger else None
-            sent_msg = await send_message_safe(bot_instance, user, msg.text, keyboard, media_file, mime)
+            keyboard = (
+                get_keyboard(msg.button_text, bloger.ref_link_to_site)
+                if bloger
+                else None
+            )
+            sent_msg = await send_message_safe(
+                bot_instance, user, msg.text, keyboard, media_file, mime
+            )
 
         if sent_msg:
             # видаляємо/позначаємо після успіху
             await sync_to_async(msg.delete)()
-            logger.debug(f"🗑 Видалено повідомлення ID: {msg.id} після успішної відправки")
+            logger.debug(
+                f"🗑 Видалено повідомлення ID: {msg.id} після успішної відправки"
+            )
         else:
-            logger.warning(f"⚠️ Повідомлення ID {msg.id} не було відправлено; залишено в базі")
+            logger.warning(
+                f"⚠️ Повідомлення ID {msg.id} не було відправлено; залишено в базі"
+            )
 
         msg_duration = (datetime.now() - msg_start).total_seconds()
         logger.info(f"⏱ Повідомлення {msg.id} оброблено за {msg_duration:.2f} сек")
 
     total_duration = (datetime.now() - start_time).total_seconds()
-    logger.info(f"🏁 Завершено відправку повідомлень після старту. Час: {total_duration:.2f} сек")
+    logger.info(
+        f"🏁 Завершено відправку повідомлень після старту. Час: {total_duration:.2f} сек"
+    )
+
 
 async def send_scheduled_messages():
     start_time = datetime.now()
@@ -159,24 +219,45 @@ async def send_scheduled_messages():
 
             bloger = user.bloger
             if not bloger:
-                logger.warning(f"⚠️ Пропуск користувача {user.telegram_id} - блогер не знайдений")
+                logger.warning(
+                    f"⚠️ Пропуск користувача {user.telegram_id} - блогер не знайдений"
+                )
                 return False
 
             button_link = msg.button_link or bloger.ref_link_to_site
             keyboard = get_keyboard(msg.button_text, button_link)
-            message_text = msg.text.format(name=user.first_name) if "{name}" in msg.text else msg.text
+            message_text = (
+                msg.text.format(name=user.first_name)
+                if "{name}" in msg.text
+                else msg.text
+            )
 
             try:
-                sent = await send_message_safe(bot_instance, user, message_text, keyboard, media_file, mime, msg.send_button)
+                sent = await send_message_safe(
+                    bot_instance,
+                    user,
+                    message_text,
+                    keyboard,
+                    media_file,
+                    mime,
+                    msg.send_button,
+                )
                 duration = (datetime.now() - start).total_seconds()
                 if sent:
-                    logger.debug(f"✅ Відправлено користувачу {user.telegram_id} за {duration:.2f} сек")
+                    logger.debug(
+                        f"✅ Відправлено користувачу {user.telegram_id} за {duration:.2f} сек"
+                    )
                 else:
-                    logger.debug(f"❌ Не вдалось відправити користувачу {user.telegram_id}")
+                    logger.debug(
+                        f"❌ Не вдалось відправити користувачу {user.telegram_id}"
+                    )
                 await asyncio.sleep(0.2)
                 return bool(sent)
             except Exception as ex:
-                logger.error(f"❌ Помилка відправки користувачу {user.telegram_id}: {ex}", exc_info=True)
+                logger.error(
+                    f"❌ Помилка відправки користувачу {user.telegram_id}: {ex}",
+                    exc_info=True,
+                )
                 return False
 
     for msg in messages:
@@ -207,32 +288,47 @@ async def send_scheduled_messages():
                     User.objects.select_related("bloger").filter(bot=bot_obj).distinct()
                 )
 
-                logger.info(f"👥 Знайдено {len(users)} користувачів для бота {bot_obj.username}")
+                logger.info(
+                    f"👥 Знайдено {len(users)} користувачів для бота {bot_obj.username}"
+                )
 
                 media_file = FSInputFile(msg.media.path) if msg.media else None
-                mime, _ = mimetypes.guess_type(msg.media.path) if msg.media else (None, None)
+                mime, _ = (
+                    mimetypes.guess_type(msg.media.path) if msg.media else (None, None)
+                )
 
-                tasks = [send_with_limit(user, bot_instance, msg, media_file, mime) for user in users]
+                tasks = [
+                    send_with_limit(user, bot_instance, msg, media_file, mime)
+                    for user in users
+                ]
                 chunks = [tasks[i : i + 5] for i in range(0, len(tasks), 5)]
 
                 logger.info(f"📦 Розділено на {len(chunks)} частин по 5 повідомлень")
 
                 for i, chunk in enumerate(chunks, 1):
                     chunk_start = datetime.now()
-                    logger.info(f"📤 Відправка частини {i}/{len(chunks)} ({len(chunk)} повідомлень)")
+                    logger.info(
+                        f"📤 Відправка частини {i}/{len(chunks)} ({len(chunk)} повідомлень)"
+                    )
 
                     results = await asyncio.gather(*chunk, return_exceptions=True)
 
                     successful = len([r for r in results if r is True])
-                    failed = len([r for r in results if r is False or isinstance(r, Exception)])
+                    failed = len(
+                        [r for r in results if r is False or isinstance(r, Exception)]
+                    )
 
                     chunk_duration = (datetime.now() - chunk_start).total_seconds()
-                    logger.info(f"📊 Частина {i}: ✅ Успішно: {successful}, ❌ Помилок: {failed}, ⏱ Час: {chunk_duration:.2f} сек")
+                    logger.info(
+                        f"📊 Частина {i}: ✅ Успішно: {successful}, ❌ Помилок: {failed}, ⏱ Час: {chunk_duration:.2f} сек"
+                    )
 
                     await asyncio.sleep(1)
 
                 bot_duration = (datetime.now() - msg_start).total_seconds()
-                logger.info(f"⏱ Час роботи з ботом {bot_obj.username}: {bot_duration:.2f} сек")
+                logger.info(
+                    f"⏱ Час роботи з ботом {bot_obj.username}: {bot_duration:.2f} сек"
+                )
 
         msg_duration = (datetime.now() - msg_start).total_seconds()
         logger.info(f"⏱ Час обробки повідомлення ID {msg.id}: {msg_duration:.2f} сек")
